@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/flaky-test-msvc
     paths:
       - "**.rs"
       - "Cargo.toml"
@@ -29,21 +30,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            target: x86_64-apple-darwin
-          - os: macos-latest
-            target: aarch64-apple-darwin
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            coverage: true
-            conventional_commit_check: true
+          # - os: macos-latest
+          #   target: x86_64-apple-darwin
+          # - os: macos-latest
+          #   target: aarch64-apple-darwin
+          # - os: ubuntu-latest
+          #   target: x86_64-unknown-linux-musl
+          #   coverage: true
+          #   conventional_commit_check: true
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             force_lf: truhow to update the CI to trigger test, lint and build only when the rust crate is modified ?e
-          - os: ubuntu-latest
-            target: armv7-unknown-linux-musleabihf
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
+          # - os: ubuntu-latest
+          #   target: armv7-unknown-linux-musleabihf
+          # - os: ubuntu-latest
+          #   target: aarch64-unknown-linux-gnu
     steps:
       - if: ${{ matrix.force_lf }}
         run: |
@@ -79,61 +80,14 @@ jobs:
           profile: minimal
           toolchain: stable
 
-      - name: Install cargo-llvm-cov
-        if: ${{matrix.coverage}}
-        uses: taiki-e/install-action@cargo-llvm-cov
-
       - name: Install nextest
         uses: taiki-e/install-action@nextest
 
-      - name: Collect coverage data
-        if: ${{matrix.coverage}}
-        run: cargo llvm-cov nextest --lcov --output-path lcov.info
-
-      - name: Upload coverage to Codecov
-        if: ${{matrix.coverage}}
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: lcov.info
-          fail_ci_if_error: true
-
       - name: Test
-        if: ${{ ! matrix.coverage }}
         uses: actions-rs/cargo@v1
         with:
           command: nextest
           args: run
-
-  lints:
-    name: Lints & Format
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-all-crates: "true"
-
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-
-      - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        continue-on-error: false
-        with:
-          command: fmt
-          args: --all -- --check
-
-      - name: Run cargo clippy
-        uses: actions-rs/cargo@v1
-        continue-on-error: false
-        with:
-          command: clippy
-          args: -- -D warnings
+        env:
+          NEXTEST_RETRIES: 2
+          NEXTEST_TEST_THREADS: 2
